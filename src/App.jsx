@@ -2,14 +2,16 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import HomePage from "./pages/HomePage";
+import About from "./pages/About";
+import Services from "./pages/Services";
+import Contact from "./pages/Contact";
 import { UserContextProvider } from "./context/userContext";
 import Test from "./pages/Test";
+import NotFound from "./pages/NotFound";
+import MainLayout from "./layouts/MainLayout";
+import Profile from "./pages/Profile";
 function App() {
     const router = createBrowserRouter([
-        {
-            path: "/",
-            element: <HomePage />,
-        },
         {
             path: "/login",
             element: <Login />,
@@ -19,9 +21,38 @@ function App() {
             element: <Register />,
         },
         {
-            path:"/test",
-            element:<Test/>
-        }
+            element: <MainLayout />,
+            children: [
+                {
+                    index: true,
+                    element: <HomePage />,
+                },
+                {
+                    path: "about",
+                    element: <About />,
+                },
+                {
+                    path: "services",
+                    element: <Services />,
+                },
+                {
+                    path: "contact",
+                    element: <Contact />,
+                },
+                {
+                    path: "test",
+                    element: <Test />,
+                },
+                {
+                    path: "profile",
+                    element: <Profile />,
+                },
+                {
+                    path: "*",
+                    element: <NotFound />,
+                },
+            ],
+        },
     ]);
 
     return (

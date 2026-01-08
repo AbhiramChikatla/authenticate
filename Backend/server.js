@@ -6,7 +6,7 @@ import cors from "cors";
 import bodyParser from "body-parser";
 import "dotenv/config";
 import { userModel } from "../src/models/UserSchema.js";
-import bcrypt from "bcryptjs";
+import bcrypt from "bcryptjs"; 
 import jwt from "jsonwebtoken";
 import cookieParser from "cookie-parser";
 
