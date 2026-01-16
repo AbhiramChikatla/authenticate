@@ -10,6 +10,9 @@ import Test from "./pages/Test";
 import NotFound from "./pages/NotFound";
 import MainLayout from "./layouts/MainLayout";
 import Profile from "./pages/Profile";
+import Blogs from "./pages/Blogs";
+import CreateBlog from "./pages/CreateBlog";
+import BlogDetail from "./pages/BlogDetail";
 function App() {
     const router = createBrowserRouter([
         {
@@ -46,6 +49,18 @@ function App() {
                 {
                     path: "profile",
                     element: <Profile />,
+                },
+                {
+                    path: "blogs",
+                    element: <Blogs />,
+                },
+                {
+                    path: "blogs/create",
+                    element: <CreateBlog />,
+                },
+                {
+                    path: "blogs/:id",
+                    element: <BlogDetail />,
                 },
                 {
                     path: "*",

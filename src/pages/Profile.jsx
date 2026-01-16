@@ -5,7 +5,9 @@ import { userContext } from "../context/userContext";
 const Profile = () => {
     const { LoginUser, setLoginUser } = useContext(userContext);
 
-    const isAuthed = Boolean(LoginUser && (LoginUser.username || LoginUser.email));
+    const isAuthed = Boolean(
+        LoginUser && (LoginUser.username || LoginUser.email)
+    );
     const [isEditing, setIsEditing] = useState(false);
     const [form, setForm] = useState({
         username: LoginUser?.username || "",
@@ -71,10 +73,16 @@ const Profile = () => {
                 throw new Error(data?.msg || "Failed to update profile");
             }
             setLoginUser(data.user);
-            setStatus({ type: "success", msg: "Profile updated successfully." });
+            setStatus({
+                type: "success",
+                msg: "Profile updated successfully.",
+            });
             setIsEditing(false);
         } catch (e) {
-            setStatus({ type: "error", msg: e.message || "Something went wrong" });
+            setStatus({
+                type: "error",
+                msg: e.message || "Something went wrong",
+            });
         } finally {
             setSaving(false);
         }
@@ -87,8 +95,12 @@ const Profile = () => {
                     <div className="p-8 border-b border-gray-100">
                         <div className="flex items-start justify-between">
                             <div>
-                                <h1 className="text-2xl font-bold text-gray-900">Your Profile</h1>
-                                <p className="text-gray-600">Manage your account details.</p>
+                                <h1 className="text-2xl font-bold text-gray-900">
+                                    Your Profile
+                                </h1>
+                                <p className="text-gray-600">
+                                    Manage your account details.
+                                </p>
                             </div>
                             {isAuthed && (
                                 <button
@@ -118,7 +130,9 @@ const Profile = () => {
                                 {isEditing ? (
                                     <div className="space-y-5">
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Username
+                                            </label>
                                             <input
                                                 name="username"
                                                 value={form.username}
@@ -128,7 +142,9 @@ const Profile = () => {
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Bio</label>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Bio
+                                            </label>
                                             <textarea
                                                 name="bio"
                                                 value={form.bio}
@@ -144,10 +160,14 @@ const Profile = () => {
                                                 disabled={saving}
                                                 className="bg-blue-700 text-white font-semibold px-4 py-2 rounded-lg hover:bg-blue-800 disabled:opacity-70"
                                             >
-                                                {saving ? "Saving..." : "Save Changes"}
+                                                {saving
+                                                    ? "Saving..."
+                                                    : "Save Changes"}
                                             </button>
                                             <button
-                                                onClick={() => setIsEditing(false)}
+                                                onClick={() =>
+                                                    setIsEditing(false)
+                                                }
                                                 className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
                                             >
                                                 Cancel
@@ -161,8 +181,12 @@ const Profile = () => {
                                                 key={item.label}
                                                 className="flex flex-col sm:flex-row sm:items-center sm:justify-between border border-gray-100 rounded-xl px-4 py-3"
                                             >
-                                                <span className="text-sm font-medium text-gray-600">{item.label}</span>
-                                                <span className="text-base text-gray-900 break-all">{item.value}</span>
+                                                <span className="text-sm font-medium text-gray-600">
+                                                    {item.label}
+                                                </span>
+                                                <span className="text-base text-gray-900 break-all">
+                                                    {item.value}
+                                                </span>
                                             </div>
                                         ))}
                                     </div>
@@ -170,7 +194,9 @@ const Profile = () => {
                             </>
                         ) : (
                             <div className="text-gray-700">
-                                <p className="mb-4">Please log in to view your profile.</p>
+                                <p className="mb-4">
+                                    Please log in to view your profile.
+                                </p>
                                 <Link
                                     to="/login"
                                     className="inline-block bg-blue-700 text-white font-semibold px-4 py-2 rounded-lg"
@@ -187,4 +213,3 @@ const Profile = () => {
 };
 
 export default Profile;
-

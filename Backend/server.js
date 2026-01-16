@@ -6,15 +6,16 @@ import cors from "cors";
 import bodyParser from "body-parser";
 import "dotenv/config";
 import { userModel } from "../src/models/UserSchema.js";
-import bcrypt from "bcryptjs"; 
+import { blogModel } from "../src/models/blogSchema.js";
+import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import cookieParser from "cookie-parser";
 
 // Connection URL
 const url = process.env.MONGO_URI;
- 
+
 // code written for accepting cookies
-const corsOptions = { 
+const corsOptions = {
     origin: "http://localhost:5173",
     credentials: true,
 };
@@ -108,18 +109,14 @@ app.post("/login", async (req, res) => {
     // password checking
     const isMatch = await bcrypt.compare(password, findUser.password);
     if (isMatch) {
-        const userObj={username:findUser.username,email}
-        const token = jwt.sign(
-            userObj,
-            jwtSecret,
-            {
-                expiresIn: "2h",
-            }
-        );
-        res.cookie("token",token,{
-            secure:false,   // important
-            sameSite:"lax",
-        }).send({ success: true, msg: "Login Successful",user:userObj });
+        const userObj = { username: findUser.username, email };
+        const token = jwt.sign(userObj, jwtSecret, {
+            expiresIn: "2h",
+        });
+        res.cookie("token", token, {
+            secure: false, // important
+            sameSite: "lax",
+        }).send({ success: true, msg: "Login Successful", user: userObj });
     } else {
         res.send({ success: false, msg: "Incorrect Password" });
     }
@@ -143,7 +140,9 @@ app.get("/profile", async (req, res) => {
             "username email bio createdAt _id"
         );
         if (!user) {
-            return res.status(404).json({ success: false, msg: "User not found" });
+            return res
+                .status(404)
+                .json({ success: false, msg: "User not found" });
         }
         res.json(user);
     } catch (err) {
@@ -154,7 +153,9 @@ app.get("/profile", async (req, res) => {
 app.put("/profile", async (req, res) => {
     const { token } = req.cookies;
     if (!token) {
-        return res.status(401).json({ success: false, msg: "Not authenticated" });
+        return res
+            .status(401)
+            .json({ success: false, msg: "Not authenticated" });
     }
     try {
         const decoded = jwt.verify(token, jwtSecret);
@@ -167,7 +168,9 @@ app.put("/profile", async (req, res) => {
             update.bio = bio;
         }
         if (Object.keys(update).length === 0) {
-            return res.status(400).json({ success: false, msg: "No valid fields to update" });
+            return res
+                .status(400)
+                .json({ success: false, msg: "No valid fields to update" });
         }
         const updated = await userModel.findOneAndUpdate(
             { email: decoded.email },
@@ -175,15 +178,25 @@ app.put("/profile", async (req, res) => {
             { new: true, fields: "username email bio createdAt _id" }
         );
         if (!updated) {
-            return res.status(404).json({ success: false, msg: "User not found" });
+            return res
+                .status(404)
+                .json({ success: false, msg: "User not found" });
         }
-        const newToken = jwt.sign({ username: updated.username, email: updated.email }, jwtSecret, { expiresIn: "2h" });
+        const newToken = jwt.sign(
+            { username: updated.username, email: updated.email },
+            jwtSecret,
+            { expiresIn: "2h" }
+        );
         res.cookie("token", newToken, {
             secure: false,
             sameSite: "lax",
         }).json({ success: true, user: updated });
     } catch (err) {
-        res.status(400).json({ success: false, msg: "Update failed", error: err?.message || err });
+        res.status(400).json({
+            success: false,
+            msg: "Update failed",
+            error: err?.message || err,
+        });
     }
 });
 
@@ -191,6 +204,176 @@ app.get("/logout", (req, res) => {
     res.clearCookie("token").send("Logged Out");
 });
 
+// Blog routes
+app.post("/blogs", async (req, res) => {
+    const { token } = req.cookies;
+    if (!token) {
+        return res
+            .status(401)
+            .json({ success: false, msg: "Not authenticated" });
+    }
+    try {
+        const decoded = jwt.verify(token, jwtSecret);
+        const { title, content, excerpt, imageUrl, tags } = req.body;
+
+        if (!title || !content) {
+            return res
+                .status(400)
+                .json({
+                    success: false,
+                    msg: "Title and content are required",
+                });
+        }
+
+        const user = await userModel.findOne({ email: decoded.email });
+        if (!user) {
+            return res
+                .status(404)
+                .json({ success: false, msg: "User not found" });
+        }
+
+        const blog = await blogModel.create({
+            title,
+            content,
+            excerpt: excerpt || content.substring(0, 150),
+            imageUrl: imageUrl || "",
+            author: {
+                userId: user._id,
+                username: user.username,
+                email: user.email,
+            },
+            tags: tags || [],
+        });
+
+        res.status(201).json({ success: true, blog });
+    } catch (err) {
+        res.status(400).json({
+            success: false,
+            msg: "Failed to create blog",
+            error: err?.message || err,
+        });
+    }
+});
+
+app.get("/blogs", async (req, res) => {
+    try {
+        const { userId } = req.query;
+        const filter = userId ? { "author.userId": userId } : {};
+        const blogs = await blogModel.find(filter).sort({ createdAt: -1 });
+        res.json({ success: true, blogs });
+    } catch (err) {
+        res.status(400).json({
+            success: false,
+            msg: "Failed to fetch blogs",
+            error: err?.message || err,
+        });
+    }
+});
+
+app.get("/blogs/:id", async (req, res) => {
+    try {
+        const blog = await blogModel.findById(req.params.id);
+        if (!blog) {
+            return res
+                .status(404)
+                .json({ success: false, msg: "Blog not found" });
+        }
+        res.json({ success: true, blog });
+    } catch (err) {
+        res.status(400).json({
+            success: false,
+            msg: "Failed to fetch blog",
+            error: err?.message || err,
+        });
+    }
+});
+
+app.put("/blogs/:id", async (req, res) => {
+    const { token } = req.cookies;
+    if (!token) {
+        return res
+            .status(401)
+            .json({ success: false, msg: "Not authenticated" });
+    }
+    try {
+        const decoded = jwt.verify(token, jwtSecret);
+        const blog = await blogModel.findById(req.params.id);
+
+        if (!blog) {
+            return res
+                .status(404)
+                .json({ success: false, msg: "Blog not found" });
+        }
+
+        if (blog.author.email !== decoded.email) {
+            return res
+                .status(403)
+                .json({
+                    success: false,
+                    msg: "Not authorized to edit this blog",
+                });
+        }
+
+        const { title, content, excerpt, imageUrl, tags } = req.body;
+        const update = {};
+        if (title) update.title = title;
+        if (content) update.content = content;
+        if (excerpt !== undefined) update.excerpt = excerpt;
+        if (imageUrl !== undefined) update.imageUrl = imageUrl;
+        if (tags) update.tags = tags;
+
+        const updated = await blogModel.findByIdAndUpdate(
+            req.params.id,
+            { $set: update },
+            { new: true }
+        );
+
+        res.json({ success: true, blog: updated });
+    } catch (err) {
+        res.status(400).json({
+            success: false,
+            msg: "Failed to update blog",
+            error: err?.message || err,
+        });
+    }
+});
+
+app.delete("/blogs/:id", async (req, res) => {
+    const { token } = req.cookies;
+    if (!token) {
+        return res
+            .status(401)
+            .json({ success: false, msg: "Not authenticated" });
+    }
+    try {
+        const decoded = jwt.verify(token, jwtSecret);
+        const blog = await blogModel.findById(req.params.id);
+
+        if (!blog) {
+            return res
+                .status(404)
+                .json({ success: false, msg: "Blog not found" });
+        }
+
+        if (blog.author.email !== decoded.email) {
+            return res
+                .status(403)
+                .json({
+                    success: false,
+                    msg: "Not authorized to delete this blog",
+                });
+        }
+
+        await blogModel.findByIdAndDelete(req.params.id);
+        res.json({ success: true, msg: "Blog deleted successfully" });
+    } catch (err) {
+        res.status(400).json({
+            success: false,
+            msg: "Failed to delete blog",
+            error: err?.message || err,
+        });
+    }
+});
 
 app.listen(port, () => {
     console.log(`Example app listening on port ${port}`);
