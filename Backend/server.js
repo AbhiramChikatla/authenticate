@@ -137,7 +137,7 @@ app.get("/profile", async (req, res) => {
         const decoded = jwt.verify(token, jwtSecret);
         const user = await userModel.findOne(
             { email: decoded.email },
-            "username email bio createdAt _id"
+            "username email bio createdAt _id isAdmin"
         );
         if (!user) {
             return res
@@ -217,12 +217,10 @@ app.post("/blogs", async (req, res) => {
         const { title, content, excerpt, imageUrl, tags } = req.body;
 
         if (!title || !content) {
-            return res
-                .status(400)
-                .json({
-                    success: false,
-                    msg: "Title and content are required",
-                });
+            return res.status(400).json({
+                success: false,
+                msg: "Title and content are required",
+            });
         }
 
         const user = await userModel.findOne({ email: decoded.email });
@@ -306,12 +304,10 @@ app.put("/blogs/:id", async (req, res) => {
         }
 
         if (blog.author.email !== decoded.email) {
-            return res
-                .status(403)
-                .json({
-                    success: false,
-                    msg: "Not authorized to edit this blog",
-                });
+            return res.status(403).json({
+                success: false,
+                msg: "Not authorized to edit this blog",
+            });
         }
 
         const { title, content, excerpt, imageUrl, tags } = req.body;
@@ -356,12 +352,10 @@ app.delete("/blogs/:id", async (req, res) => {
         }
 
         if (blog.author.email !== decoded.email) {
-            return res
-                .status(403)
-                .json({
-                    success: false,
-                    msg: "Not authorized to delete this blog",
-                });
+            return res.status(403).json({
+                success: false,
+                msg: "Not authorized to delete this blog",
+            });
         }
 
         await blogModel.findByIdAndDelete(req.params.id);
@@ -370,6 +364,164 @@ app.delete("/blogs/:id", async (req, res) => {
         res.status(400).json({
             success: false,
             msg: "Failed to delete blog",
+            error: err?.message || err,
+        });
+    }
+});
+
+// Admin routes
+// Middleware to check if user is admin
+const isAdmin = async (req, res, next) => {
+    const { token } = req.cookies;
+    if (!token) {
+        return res
+            .status(401)
+            .json({ success: false, msg: "Not authenticated" });
+    }
+    try {
+        const decoded = jwt.verify(token, jwtSecret);
+        const user = await userModel.findOne({ email: decoded.email });
+        if (!user || !user.isAdmin) {
+            return res
+                .status(403)
+                .json({ success: false, msg: "Access denied. Admin only." });
+        }
+        req.user = user;
+        next();
+    } catch (err) {
+        res.status(401).json({ success: false, msg: "Invalid token" });
+    }
+};
+
+// Get all users (Admin only)
+app.get("/admin/users", isAdmin, async (req, res) => {
+    try {
+        const users = await userModel
+            .find({}, "-password")
+            .sort({ createdAt: -1 });
+        res.json({ success: true, users });
+    } catch (err) {
+        res.status(400).json({
+            success: false,
+            msg: "Failed to fetch users",
+            error: err?.message || err,
+        });
+    }
+});
+
+// Get all blogs (Admin only)
+app.get("/admin/blogs", isAdmin, async (req, res) => {
+    try {
+        const blogs = await blogModel.find({}).sort({ createdAt: -1 });
+        res.json({ success: true, blogs });
+    } catch (err) {
+        res.status(400).json({
+            success: false,
+            msg: "Failed to fetch blogs",
+            error: err?.message || err,
+        });
+    }
+});
+
+// Delete any blog (Admin only)
+app.delete("/admin/blogs/:id", isAdmin, async (req, res) => {
+    try {
+        const blog = await blogModel.findById(req.params.id);
+        if (!blog) {
+            return res
+                .status(404)
+                .json({ success: false, msg: "Blog not found" });
+        }
+        await blogModel.findByIdAndDelete(req.params.id);
+        res.json({ success: true, msg: "Blog deleted successfully" });
+    } catch (err) {
+        res.status(400).json({
+            success: false,
+            msg: "Failed to delete blog",
+            error: err?.message || err,
+        });
+    }
+});
+
+// Create a new user (Admin only)
+app.post("/admin/users", isAdmin, async (req, res) => {
+    try {
+        const { username, email, password, isAdmin: makeAdmin } = req.body;
+
+        if (!username || !email || !password) {
+            return res.status(400).json({
+                success: false,
+                msg: "Username, email, and password are required",
+            });
+        }
+
+        const existingUser = await userModel.findOne({ email });
+        if (existingUser) {
+            return res.status(400).json({
+                success: false,
+                msg: "User with this email already exists",
+            });
+        }
+
+        const encPassword = await bcrypt.hash(password, 10);
+        const newUser = await userModel.create({
+            username,
+            email,
+            password: encPassword,
+            isAdmin: makeAdmin || false,
+        });
+
+        res.status(201).json({
+            success: true,
+            msg: "User created successfully",
+            user: {
+                _id: newUser._id,
+                username: newUser.username,
+                email: newUser.email,
+                isAdmin: newUser.isAdmin,
+                createdAt: newUser.createdAt,
+            },
+        });
+    } catch (err) {
+        res.status(400).json({
+            success: false,
+            msg: "Failed to create user",
+            error: err?.message || err,
+        });
+    }
+});
+
+// Delete a user (Admin only)
+app.delete("/admin/users/:id", isAdmin, async (req, res) => {
+    try {
+        const user = await userModel.findById(req.params.id);
+        if (!user) {
+            return res
+                .status(404)
+                .json({ success: false, msg: "User not found" });
+        }
+
+        // Prevent admin from deleting themselves
+        if (user._id.toString() === req.user._id.toString()) {
+            return res.status(400).json({
+                success: false,
+                msg: "Cannot delete your own account",
+            });
+        }
+
+        await userModel.findByIdAndDelete(req.params.id);
+
+        // Also delete all blogs by this user
+        await blogModel.deleteMany({ "author.userId": req.params.id });
+
+        res.json({
+            success: true,
+            msg: "User and their blogs deleted successfully",
+        });
+    } catch (err) {
+        res.status(400).json({
+            success: false,
+            msg: "Failed to delete user",
             error: err?.message || err,
         });
     }

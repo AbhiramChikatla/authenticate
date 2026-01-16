@@ -13,6 +13,7 @@ import Profile from "./pages/Profile";
 import Blogs from "./pages/Blogs";
 import CreateBlog from "./pages/CreateBlog";
 import BlogDetail from "./pages/BlogDetail";
+import Admin from "./pages/Admin";
 function App() {
     const router = createBrowserRouter([
         {
@@ -61,6 +62,10 @@ function App() {
                 {
                     path: "blogs/:id",
                     element: <BlogDetail />,
+                },
+                {
+                    path: "admin",
+                    element: <Admin />,
                 },
                 {
                     path: "*",

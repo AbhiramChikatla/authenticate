@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { userContext } from "../context/userContext";
 import "react-loading-skeleton/dist/skeleton.css";
 import Celekton from "./Celekton";
-import { CircleUserRound } from "lucide-react";
+import { CircleUserRound, Shield } from "lucide-react";
 
 const Navbar = () => {
     const [ready, SetReady] = useState(false);
@@ -50,8 +50,25 @@ const Navbar = () => {
                             <>
                                 {LoginUser ? (
                                     <>
+                                        {LoginUser.isAdmin && (
+                                            <button
+                                                onClick={() =>
+                                                    navigate("/admin")
+                                                }
+                                                className="flex items-center gap-2 border-2 border-blue-600 bg-blue-50 px-4 py-2 rounded-md hover:bg-blue-100 transition"
+                                                title="Admin Panel"
+                                            >
+                                                <Shield
+                                                    className="text-blue-600"
+                                                    size={20}
+                                                />
+                                                <span className="text-blue-600 font-medium">
+                                                    Admin
+                                                </span>
+                                            </button>
+                                        )}
                                         <div
-                                            className="flex gap-2 border-2 border-gray-900 px-5 py-2 rounded-md "
+                                            className="flex gap-2 border-2 border-gray-900 px-5 py-2 rounded-md cursor-pointer"
                                             onClick={() =>
                                                 setDropdown(!dropdown)
                                             }

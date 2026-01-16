@@ -10,6 +10,7 @@ const userSchema = new mongoose.Schema(
         },
         password: { type: String, minLength: 8, required: true },
         bio: { type: String, default: "" },
+        isAdmin: { type: Boolean, default: false },
     },
     { timestamps: true }
 );
