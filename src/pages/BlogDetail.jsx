@@ -1,6 +1,8 @@
 import React, { useContext, useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { userContext } from "../context/userContext";
+import toast from "react-hot-toast";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 const BlogDetail = () => {
     const { id } = useParams();
@@ -10,6 +12,10 @@ const BlogDetail = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [deleting, setDeleting] = useState(false);
+    const [confirmDialog, setConfirmDialog] = useState({
+        isOpen: false,
+        onConfirm: () => {},
+    });
 
     useEffect(() => {
         fetchBlog();
@@ -35,25 +41,41 @@ const BlogDetail = () => {
     };
 
     const handleDelete = async () => {
-        if (!window.confirm("Are you sure you want to delete this blog?")) {
-            return;
-        }
-        setDeleting(true);
-        try {
-            const res = await fetch(`http://localhost:3000/blogs/${id}`, {
-                method: "DELETE",
-                credentials: "include",
-            });
-            const data = await res.json();
-            if (!res.ok || !data.success) {
-                throw new Error(data?.msg || "Failed to delete blog");
-            }
-            navigate("/blogs");
-        } catch (err) {
-            alert(err.message || "Failed to delete blog");
-        } finally {
-            setDeleting(false);
-        }
+        setConfirmDialog({
+            isOpen: true,
+            onConfirm: async () => {
+                setDeleting(true);
+
+                const deletePromise = fetch(
+                    `http://localhost:3000/blogs/${id}`,
+                    {
+                        method: "DELETE",
+                        credentials: "include",
+                    }
+                )
+                    .then((res) => res.json())
+                    .then((data) => {
+                        if (!data.success) {
+                            throw new Error(
+                                data?.msg || "Failed to delete blog"
+                            );
+                        }
+                        setDeleting(false);
+                        navigate("/blogs");
+                        return data;
+                    })
+                    .catch((err) => {
+                        setDeleting(false);
+                        throw err;
+                    });
+
+                toast.promise(deletePromise, {
+                    loading: "Deleting blog...",
+                    success: "Blog deleted successfully",
+                    error: (err) => err.message || "Failed to delete blog",
+                });
+            },
+        });
     };
 
     if (loading) {
@@ -86,6 +108,15 @@ const BlogDetail = () => {
                         </Link>
                     </div>
                 </div>
+                <ConfirmDialog
+                    isOpen={confirmDialog.isOpen}
+                    onClose={() =>
+                        setConfirmDialog({ ...confirmDialog, isOpen: false })
+                    }
+                    onConfirm={confirmDialog.onConfirm}
+                    title="Delete Blog"
+                    message="Are you sure you want to delete this blog? This action cannot be undone."
+                />
             </div>
         );
     }

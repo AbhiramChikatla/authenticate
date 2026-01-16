@@ -2,6 +2,8 @@ import React, { useContext, useEffect, useState } from "react";
 import { userContext } from "../context/userContext";
 import { useNavigate } from "react-router-dom";
 import { Users, FileText, Trash2, UserPlus, Shield } from "lucide-react";
+import toast from "react-hot-toast";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 const Admin = () => {
     const { LoginUser } = useContext(userContext);
@@ -16,6 +18,12 @@ const Admin = () => {
         email: "",
         password: "",
         isAdmin: false,
+    });
+    const [confirmDialog, setConfirmDialog] = useState({
+        isOpen: false,
+        title: "",
+        message: "",
+        onConfirm: () => {},
     });
 
     useEffect(() => {
@@ -62,91 +70,97 @@ const Admin = () => {
     };
 
     const handleDeleteUser = async (userId) => {
-        if (
-            !confirm(
-                "Are you sure you want to delete this user? This will also delete all their blogs."
-            )
-        ) {
-            return;
-        }
+        setConfirmDialog({
+            isOpen: true,
+            title: "Delete User",
+            message:
+                "Are you sure you want to delete this user? This will also delete all their blogs.",
+            onConfirm: async () => {
+                const deletePromise = fetch(
+                    `http://localhost:3000/admin/users/${userId}`,
+                    {
+                        method: "DELETE",
+                        credentials: "include",
+                    }
+                ).then((res) => res.json());
 
-        try {
-            const res = await fetch(
-                `http://localhost:3000/admin/users/${userId}`,
-                {
-                    method: "DELETE",
-                    credentials: "include",
-                }
-            );
-            const data = await res.json();
-            if (data.success) {
-                alert("User deleted successfully");
-                fetchData();
-            } else {
-                alert(data.msg || "Failed to delete user");
-            }
-        } catch (error) {
-            console.error("Error deleting user:", error);
-            alert("Failed to delete user");
-        }
+                toast.promise(deletePromise, {
+                    loading: "Deleting user...",
+                    success: (data) => {
+                        if (data.success) {
+                            fetchData();
+                            return "User deleted successfully";
+                        }
+                        throw new Error(data.msg || "Failed to delete user");
+                    },
+                    error: (err) => err.message || "Failed to delete user",
+                });
+            },
+        });
     };
 
     const handleDeleteBlog = async (blogId) => {
-        if (!confirm("Are you sure you want to delete this blog?")) {
-            return;
-        }
+        setConfirmDialog({
+            isOpen: true,
+            title: "Delete Blog",
+            message:
+                "Are you sure you want to delete this blog? This action cannot be undone.",
+            onConfirm: async () => {
+                const deletePromise = fetch(
+                    `http://localhost:3000/admin/blogs/${blogId}`,
+                    {
+                        method: "DELETE",
+                        credentials: "include",
+                    }
+                ).then((res) => res.json());
 
-        try {
-            const res = await fetch(
-                `http://localhost:3000/admin/blogs/${blogId}`,
-                {
-                    method: "DELETE",
-                    credentials: "include",
-                }
-            );
-            const data = await res.json();
-            if (data.success) {
-                alert("Blog deleted successfully");
-                fetchData();
-            } else {
-                alert(data.msg || "Failed to delete blog");
-            }
-        } catch (error) {
-            console.error("Error deleting blog:", error);
-            alert("Failed to delete blog");
-        }
+                toast.promise(deletePromise, {
+                    loading: "Deleting blog...",
+                    success: (data) => {
+                        if (data.success) {
+                            fetchData();
+                            return "Blog deleted successfully";
+                        }
+                        throw new Error(data.msg || "Failed to delete blog");
+                    },
+                    error: (err) => err.message || "Failed to delete blog",
+                });
+            },
+        });
     };
 
     const handleAddUser = async (e) => {
         e.preventDefault();
 
-        try {
-            const res = await fetch("http://localhost:3000/admin/users", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                credentials: "include",
-                body: JSON.stringify(newUser),
+        const createPromise = fetch("http://localhost:3000/admin/users", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            credentials: "include",
+            body: JSON.stringify(newUser),
+        })
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.success) {
+                    setShowAddUserModal(false);
+                    setNewUser({
+                        username: "",
+                        email: "",
+                        password: "",
+                        isAdmin: false,
+                    });
+                    fetchData();
+                    return data;
+                }
+                throw new Error(data.msg || "Failed to create user");
             });
-            const data = await res.json();
-            if (data.success) {
-                alert("User created successfully");
-                setShowAddUserModal(false);
-                setNewUser({
-                    username: "",
-                    email: "",
-                    password: "",
-                    isAdmin: false,
-                });
-                fetchData();
-            } else {
-                alert(data.msg || "Failed to create user");
-            }
-        } catch (error) {
-            console.error("Error creating user:", error);
-            alert("Failed to create user");
-        }
+
+        toast.promise(createPromise, {
+            loading: "Creating user...",
+            success: "User created successfully",
+            error: (err) => err.message || "Failed to create user",
+        });
     };
 
     if (!LoginUser?.isAdmin) {
@@ -478,6 +492,16 @@ const Admin = () => {
                     </div>
                 </div>
             )}
+
+            <ConfirmDialog
+                isOpen={confirmDialog.isOpen}
+                onClose={() =>
+                    setConfirmDialog({ ...confirmDialog, isOpen: false })
+                }
+                onConfirm={confirmDialog.onConfirm}
+                title={confirmDialog.title}
+                message={confirmDialog.message}
+            />
         </div>
     );
 };
