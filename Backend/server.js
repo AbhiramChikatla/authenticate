@@ -12,9 +12,9 @@ import cookieParser from "cookie-parser";
 
 // Connection URL
 const url = process.env.MONGO_URI;
-
+ 
 // code written for accepting cookies
-const corsOptions = {
+const corsOptions = { 
     origin: "http://localhost:5173",
     credentials: true,
 };
@@ -131,20 +131,59 @@ app.post("/newpassword", (req, res) => {
     res.send({ oldpassword, newpassword });
 });
 
-app.get("/profile", (req, res) => {
-
+app.get("/profile", async (req, res) => {
     const { token } = req.cookies;
-    if (token) {
-        jwt.verify(token, jwtSecret, {}, (err, user) => {
-            if (err){ 
-                
-                throw err
-            
-            };
-            res.json(user);
-        });
-    } else {
-        res.json(null);
+    if (!token) {
+        return res.json(null);
+    }
+    try {
+        const decoded = jwt.verify(token, jwtSecret);
+        const user = await userModel.findOne(
+            { email: decoded.email },
+            "username email bio createdAt _id"
+        );
+        if (!user) {
+            return res.status(404).json({ success: false, msg: "User not found" });
+        }
+        res.json(user);
+    } catch (err) {
+        res.status(401).json({ success: false, msg: "Invalid token" });
+    }
+});
+
+app.put("/profile", async (req, res) => {
+    const { token } = req.cookies;
+    if (!token) {
+        return res.status(401).json({ success: false, msg: "Not authenticated" });
+    }
+    try {
+        const decoded = jwt.verify(token, jwtSecret);
+        const { username, bio } = req.body;
+        const update = {};
+        if (typeof username === "string" && username.trim().length > 0) {
+            update.username = username.trim();
+        }
+        if (typeof bio === "string") {
+            update.bio = bio;
+        }
+        if (Object.keys(update).length === 0) {
+            return res.status(400).json({ success: false, msg: "No valid fields to update" });
+        }
+        const updated = await userModel.findOneAndUpdate(
+            { email: decoded.email },
+            { $set: update },
+            { new: true, fields: "username email bio createdAt _id" }
+        );
+        if (!updated) {
+            return res.status(404).json({ success: false, msg: "User not found" });
+        }
+        const newToken = jwt.sign({ username: updated.username, email: updated.email }, jwtSecret, { expiresIn: "2h" });
+        res.cookie("token", newToken, {
+            secure: false,
+            sameSite: "lax",
+        }).json({ success: true, user: updated });
+    } catch (err) {
+        res.status(400).json({ success: false, msg: "Update failed", error: err?.message || err });
     }
 });
 
