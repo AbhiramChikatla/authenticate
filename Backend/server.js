@@ -86,7 +86,14 @@ app.post("/createaccount", async (req, res) => {
         res.cookie("token", token, { sameSite: "lax" }).send({
             success: true,
             msg: "Account Created Successfully",
-            user: createUser,
+            user: {
+                _id: createUser._id,
+                username: createUser.username,
+                email: createUser.email,
+                bio: createUser.bio,
+                isAdmin: createUser.isAdmin,
+                createdAt: createUser.createdAt,
+            },
         });
     } catch (error) {
         res.status(400).json({ success: false, error: error });
@@ -109,10 +116,21 @@ app.post("/login", async (req, res) => {
     // password checking
     const isMatch = await bcrypt.compare(password, findUser.password);
     if (isMatch) {
-        const userObj = { username: findUser.username, email };
-        const token = jwt.sign(userObj, jwtSecret, {
-            expiresIn: "2h",
-        });
+        const userObj = {
+            username: findUser.username,
+            email,
+            _id: findUser._id,
+            bio: findUser.bio,
+            isAdmin: findUser.isAdmin,
+            createdAt: findUser.createdAt,
+        };
+        const token = jwt.sign(
+            { username: findUser.username, email },
+            jwtSecret,
+            {
+                expiresIn: "2h",
+            }
+        );
         res.cookie("token", token, {
             secure: false, // important
             sameSite: "lax",
